@@ -1,0 +1,2 @@
+5: -5 -> No es un entero positivo (debe ser mayor a 0)
+6: texto_invalido -> Contenido no numÃ©rico o invÃ¡lido

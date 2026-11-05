@@ -1,0 +1,6 @@
+# Tamaños de tableros de ajedrez N
+4
+8
+20
+-5
+texto_invalido

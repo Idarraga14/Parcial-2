@@ -1,0 +1,4 @@
+1302 -> invÃ¡lida: formato numÃ©rico vacÃ­o o invÃ¡lido
+0213 -> invÃ¡lida: formato numÃ©rico vacÃ­o o invÃ¡lido
+1300 -> invÃ¡lida: formato numÃ©rico vacÃ­o o invÃ¡lido
+241 -> invÃ¡lida: formato numÃ©rico vacÃ­o o invÃ¡lido
