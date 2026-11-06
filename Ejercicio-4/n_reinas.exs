@@ -45,7 +45,7 @@ defmodule NReinas do
                     resolver_y_guardar(n)
                   end
                 {:error, motivo} ->
-                  IO.binwrite(io_errores, "#{num_linea}: #{linea_limpia} -> #{motivo}\n")
+                  IO.write(io_errores, "#{num_linea}: #{linea_limpia} -> #{motivo}\n")
               end
           end
         end)
@@ -117,13 +117,13 @@ defmodule NReinas do
       resolver_n(n)
       |> Stream.with_index(1)
       |> Enum.reduce({0, io_out}, fn {solucion, idx}, {count, io} ->
-        IO.binwrite(io, "Solución #{idx}:\n")
+        IO.write(io, "Solución #{idx}:\n")
         escribir_tablero(io, solucion, n)
-        IO.binwrite(io, "\n")
+        IO.write(io, "\n")
         {count + 1, io}
       end)
 
-    IO.binwrite(io_out, "Número total de soluciones: #{total}\n")
+    IO.write(io_out, "Número total de soluciones: #{total}\n")
     File.close(io_out)
   end
 
@@ -136,7 +136,7 @@ defmodule NReinas do
           if c == col, do: "Q", else: "."
         end
         |> Enum.join(" ")
-      IO.binwrite(io, "#{linea}\n")
+      IO.write(io, "#{linea}\n")
     end)
   end
 
@@ -151,11 +151,11 @@ defmodule NReinas do
 
     case primera do
       [solucion] ->
-        IO.binwrite(io, "Primera solución para N = 20:\n")
+        IO.write(io, "Primera solución para N = 20:\n")
         escribir_tablero(io, solucion, 20)
         IO.puts("¡Primera solución para N = 20 encontrada y guardada en #{ruta_n20}!")
       _ ->
-        IO.binwrite(io, "No se encontró solución para N = 20.\n")
+        IO.write(io, "No se encontró solución para N = 20.\n")
     end
 
     File.close(io)
@@ -177,7 +177,7 @@ defmodule NReinas do
         |> Stream.reject(fn linea -> linea == "" or String.starts_with?(linea, "#") end)
         |> Enum.each(fn linea ->
           resultado = analizar_propuesta(linea)
-          IO.binwrite(io_out, "#{linea} -> #{resultado}\n")
+          IO.write(io_out, "#{linea} -> #{resultado}\n")
         end)
 
         File.close(io_out)
@@ -192,7 +192,7 @@ defmodule NReinas do
         cond do
           contiene_fuera_de_rango?(columnas, 0, n) ->
             col_invalida = encontrar_fuera_de_rango(columnas, 0, n)
-            "inválida: la columna #{col_invalida} está fuera de un tablero de #{n}×#{n}"
+            "inválida: la columna #{col_invalida} está fuera de un tablero de #{n} × #{n}"
           true ->
             conflictos = hallar_conflictos(columnas, 0)
             if longitud_recursiva(conflictos) == 0 do
@@ -230,7 +230,6 @@ defmodule NReinas do
     end
   end
 
-  defp string_a_entero_recursivo("", _acumulado), do: {:error, "formato numérico vacío o inválido"}
   defp string_a_entero_recursivo(<<char::utf8, resto::binary>>, acumulado) do
     if char >= ?0 and char <= ?9 do
       digito = char - ?0
@@ -292,7 +291,7 @@ defmodule NReinas do
     if resto_formateado == "" do
       mensaje
     else
-      mensaje <> " " <> resto_formateado
+      mensaje <> "; " <> resto_formateado
     end
   end
 
@@ -300,39 +299,23 @@ defmodule NReinas do
   # PARTE 3: STREAM INFINITO Y MEDICIÓN DE TIEMPOS (SECUENCIA_REINAS.CSV)
   # ====================================================================
 
-  def generar_secuencia_infinita(ruta_csv \\ "secuencia_reinas.csv") do
-    io_out = File.open!(ruta_csv, [:write, :utf8])
-    IO.binwrite(io_out, "n;soluciones;tiempo_ms\n")
+  @limite_ms 10_000
 
-    IO.puts("=== GENERANDO SECUENCIA INFINITA DE N REINAS ===")
+  def generar_secuencia_infinita(ruta_csv \\ "secuencia_reinas.csv") do
+    io = File.open!(ruta_csv, [:write, :utf8])
+    IO.write(io, "n;soluciones;tiempo_ms\n")
 
     Stream.iterate(1, &(&1 + 1))
     |> Stream.map(fn n ->
-      {tiempo_us, cantidad_soluciones} =
-        :timer.tc(fn ->
-          resolver_n(n)
-          |> Enum.reduce(0, fn _solucion, contador ->
-            contador + 1
-          end)
-        end)
-
-      tiempo_ms = tiempo_us / 1000
-
-      {n, cantidad_soluciones, tiempo_ms}
+      {us, sol} = :timer.tc(fn -> n |> resolver_n() |> Enum.count() end)
+      IO.puts("N = #{n} -> #{sol} soluciones, #{us / 1000} ms")
+      {n, sol, us / 1000}
     end)
-    |> Enum.reduce_while(io_out, fn {n, sol, t_ms}, io ->
-      IO.puts("N = #{n} -> Soluciones: #{sol}, Tiempo: #{t_ms} ms")
-      IO.binwrite(io, "#{n};#{sol};#{t_ms}\n")
+    |> Stream.take_while(fn {_n, _sol, ms} -> ms < @limite_ms end)
+    |> Stream.each(fn {n, sol, ms} -> IO.write(io, "#{n};#{sol};#{ms}\n") end)
+    |> Stream.run()
 
-      if t_ms >= 10_000 do
-        IO.puts("N = #{n} superó los 10 segundos.")
-        {:halt, io}
-      else
-        {:cont, io}
-      end
-    end)
-
-    File.close(io_out)
+    File.close(io)
     IO.puts("Secuencia guardada en #{ruta_csv}.")
   end
 end
