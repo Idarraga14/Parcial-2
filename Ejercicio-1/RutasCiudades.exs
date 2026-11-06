@@ -241,13 +241,10 @@ defmodule RutasCiudades do
           total_rutas = contar_rec(rutas, 0)
           imprimir_y_escribir("Número de rutas: #{total_rutas}", file_salida)
 
-          mas_corta = obtener_mas_corta_rec(rutas)
+          mas_cortas = obtener_mas_cortas_rec(rutas)
           menor_dist = obtener_menor_distancia_rec(rutas)
 
-          imprimir_y_escribir(
-            "Ruta más corta: #{unir_ciudades_rec(mas_corta.ciudades, " -> ")}",
-            file_salida
-          )
+          imprimir_mas_cortas(mas_cortas, file_salida)
 
           imprimir_y_escribir(
             "Ruta de menor distancia: #{unir_ciudades_rec(menor_dist.ciudades, " -> ")} (#{menor_dist.distancia} km)\n",
@@ -270,8 +267,9 @@ defmodule RutasCiudades do
   end
 
   defp escribir_lineas(ruta_archivo, lineas) do
-    contenido = Enum.join(lineas, "\n") <> if(lineas == [], do: "", else: "\n")
-    File.write!(ruta_archivo, contenido)
+    archivo = File.open!(ruta_archivo, [:write, :utf8])
+    Enum.each(lineas, &IO.puts(archivo, &1))
+    File.close(archivo)
   end
 
   # FUNCIONES AUXILIARES RECURSIVAS PURAS
@@ -291,15 +289,35 @@ defmodule RutasCiudades do
   defp unir_ciudades_rec([h], _sep), do: h
   defp unir_ciudades_rec([h | t], sep), do: h <> sep <> unir_ciudades_rec(t, sep)
 
-  defp obtener_mas_corta_rec([primera | resto]), do: evaluar_mas_corta_rec(resto, primera)
-  defp evaluar_mas_corta_rec([], mejor), do: mejor
+  # Devuelve TODAS las rutas que visitan el menor numero de ciudades
+  defp obtener_mas_cortas_rec([primera | resto]),
+    do: evaluar_mas_cortas_rec(resto, [primera], contar_rec(primera.ciudades, 0))
 
-  defp evaluar_mas_corta_rec([actual | resto], mejor) do
-    if contar_rec(actual.ciudades, 0) < contar_rec(mejor.ciudades, 0) do
-      evaluar_mas_corta_rec(resto, actual)
-    else
-      evaluar_mas_corta_rec(resto, mejor)
+  defp evaluar_mas_cortas_rec([], mejores, _minimo), do: revertir_rec(mejores, [])
+
+  defp evaluar_mas_cortas_rec([actual | resto], mejores, minimo) do
+    cantidad = contar_rec(actual.ciudades, 0)
+
+    cond do
+      cantidad < minimo -> evaluar_mas_cortas_rec(resto, [actual], cantidad)
+      cantidad == minimo -> evaluar_mas_cortas_rec(resto, [actual | mejores], minimo)
+      true -> evaluar_mas_cortas_rec(resto, mejores, minimo)
     end
+  end
+
+  defp imprimir_mas_cortas([unica], file),
+    do: imprimir_y_escribir("Ruta más corta: #{unir_ciudades_rec(unica.ciudades, " -> ")}", file)
+
+  defp imprimir_mas_cortas(varias, file) do
+    imprimir_y_escribir("Rutas más cortas (#{contar_rec(varias, 0)} empatadas):", file)
+    imprimir_lista_mas_cortas_rec(varias, file)
+  end
+
+  defp imprimir_lista_mas_cortas_rec([], _file), do: :ok
+
+  defp imprimir_lista_mas_cortas_rec([ruta | resto], file) do
+    imprimir_y_escribir("  - #{unir_ciudades_rec(ruta.ciudades, " -> ")}", file)
+    imprimir_lista_mas_cortas_rec(resto, file)
   end
 
   defp obtener_menor_distancia_rec([primera | resto]),
